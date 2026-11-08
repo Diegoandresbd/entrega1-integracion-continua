@@ -1,0 +1,47 @@
+services:
+  # Contenedor de la Base de Datos
+  db:
+    image: postgres:16-alpine
+    container_name: entrega1_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-appuser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-apppassword}
+      POSTGRES_DB: ${DB_NAME:-appdb}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-appuser} -d ${DB_NAME:-appdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app_net
+
+  # Contenedor de la Aplicación
+  app:
+    build: ./app
+    container_name: entrega1_app
+    environment:
+      PORT: 3000
+      DB_HOST: db # Aquí le decimos que busque el contenedor llamado "db"
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-appuser}
+      DB_PASSWORD: ${DB_PASSWORD:-apppassword}
+      DB_NAME: ${DB_NAME:-appdb}
+    ports:
+      - "3000:3000" # Expone el puerto 3000 de tu PC para que puedas ver la app
+    depends_on:
+      db:
+        condition: service_healthy # Espera a que la DB esté lista antes de arrancar
+    networks:
+      - app_net
+
+# Define la red interna para que se comuniquen
+networks:
+  app_net:
+    driver: bridge
+
+# Define el volumen para que los datos no se borren si apagas Docker
+volumes:
+  db_data:
